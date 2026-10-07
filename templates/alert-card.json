@@ -1,0 +1,12 @@
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    { "type": "TextBlock", "text": "⚠️ 演唱會資料有錯，提醒先暫停", "weight": "Bolder", "size": "Large", "color": "Attention", "wrap": true },
+    { "type": "TextBlock", "text": "資料檢查沒過，看板和提醒都沒有發。修好資料後再手動重跑。", "wrap": true }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "查看錯誤", "url": "{{url}}" }
+  ]
+}

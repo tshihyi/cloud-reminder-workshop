@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>演唱會看板</title>
+  <style>
+    :root {
+      --bg: #ffffff; --card: #ffffff; --text: #0f172a; --muted: #64748b;
+      --border: #e2e8f0; --accent: #2563eb; --soon: #d97706;
+    }
+    body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+           font-family: -apple-system, "Segoe UI", "Noto Sans TC", sans-serif; }
+    main { max-width: 880px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .updated { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .artist { font-size: 18px; font-weight: 700; }
+    .venue { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+    .row { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+    .row span:first-child { color: var(--muted); }
+    .soon { color: var(--soon); font-weight: 700; }
+    a.buy { display: inline-block; margin-top: 12px; color: var(--accent); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🎤 演唱會看板</h1>
+    <div class="updated" id="updated">載入中…</div>
+    <div class="grid" id="grid"></div>
+  </main>
+  <script>
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // 資料裡的時間都是台北時間
+    function parseTaipei(text) {
+      const [date, time = "00:00"] = text.split(" ");
+      return new Date(`${date}T${time}:00+08:00`);
+    }
+
+    function countdown(target) {
+      const diff = target - Date.now();
+      if (diff <= 0) return { text: "已過", soon: false };
+      const days = Math.floor(diff / DAY);
+      const hours = Math.floor((diff % DAY) / (60 * 60 * 1000));
+      return { text: days > 0 ? `${days} 天 ${hours} 小時` : `${hours} 小時`, soon: diff < 2 * DAY };
+    }
+
+    function row(label, value, soon) {
+      const div = document.createElement("div");
+      div.className = "row";
+      const name = document.createElement("span");
+      name.textContent = label;
+      const content = document.createElement("span");
+      content.textContent = value;
+      if (soon) content.className = "soon";
+      div.append(name, content);
+      return div;
+    }
+
+    fetch("data.json", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        document.getElementById("updated").textContent = `更新時間：${data.generated_at}（台北）`;
+        const grid = document.getElementById("grid");
+        for (const concert of data.concerts) {
+          const card = document.createElement("div");
+          card.className = "card";
+
+          const artist = document.createElement("div");
+          artist.className = "artist";
+          artist.textContent = concert.artist;
+          const venue = document.createElement("div");
+          venue.className = "venue";
+          venue.textContent = concert.venue;
+          card.append(artist, venue);
+
+          if (concert.sale_at) {
+            const sale = countdown(parseTaipei(concert.sale_at));
+            card.append(row("開賣", `${concert.sale_at}（${sale.text}）`, sale.soon));
+          } else {
+            card.append(row("開賣", "開賣時間未公布"));
+          }
+          const nextShow = concert.shows.map(parseTaipei).find((date) => date > Date.now() - DAY);
+          if (nextShow) {
+            const show = countdown(nextShow);
+            card.append(row("演出", `${nextShow.toLocaleDateString("zh-TW")}（${show.text}）`, show.soon));
+          } else {
+            card.append(row("演出", "已結束"));
+          }
+          if (concert.platform) card.append(row("售票", concert.platform));
+          if (concert.url) {
+            const link = document.createElement("a");
+            link.className = "buy";
+            link.href = concert.url;
+            link.target = "_blank";
+            link.rel = "noopener";
+            link.textContent = "🎫 前往購票";
+            card.append(link);
+          }
+          grid.append(card);
+        }
+      })
+      .catch(() => {
+        document.getElementById("updated").textContent = "讀不到 data.json，請先跑一次 workflow。";
+      });
+  </script>
+</body>
+</html>
