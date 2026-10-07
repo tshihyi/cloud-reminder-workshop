@@ -23,11 +23,11 @@ concurrency:
 
 jobs:
   check:                          # ① 檢查資料、挑出該提醒的場次（像 ETL）
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       reminders: ${{ steps.check.outputs.reminders }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - id: check
         env:
           NOW: ${{ inputs.now }}
@@ -39,10 +39,10 @@ jobs:
 
   publish:                        # ② 發開賣／演出提醒（像下游應用）
     # TODO(第 2 關)：check 成功才輪到我 → 在這行下面加上 needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: lab-env
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - env:
           REMINDERS: ${{ needs.check.outputs.reminders }}
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
@@ -51,7 +51,7 @@ jobs:
   board:                          # ② 更新演唱會看板（課堂上預設不跑，省下部署時間）
     needs: check
     if: github.event_name == 'schedule' || inputs.deploy_board
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
@@ -66,10 +66,10 @@ jobs:
     needs: [check, publish]
     # TODO(第 3 關)：只在前面失敗時才發警示 → 把 false 改成 failure()
     if: false
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: lab-env
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
