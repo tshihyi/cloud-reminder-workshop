@@ -73,4 +73,5 @@ jobs:
       - env:
           TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: bash scripts/teams.sh templates/alert-card.json "{\"url\": \"$RUN_URL\"}"
+        run: |
+          bash scripts/teams.sh templates/alert-card.json "$(jq -n --arg url "$RUN_URL" '{url: $url}')"
