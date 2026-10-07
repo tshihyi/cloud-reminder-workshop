@@ -82,10 +82,10 @@
           } else {
             card.append(row("開賣", "開賣時間未公布"));
           }
-          const nextShow = concert.shows.map(parseTaipei).find((date) => date > Date.now() - DAY);
+          const nextShow = concert.shows.find((text) => parseTaipei(text) > Date.now() - DAY);
           if (nextShow) {
-            const show = countdown(nextShow);
-            card.append(row("演出", `${nextShow.toLocaleDateString("zh-TW")}（${show.text}）`, show.soon));
+            const show = countdown(parseTaipei(nextShow));
+            card.append(row("演出", `${nextShow}（${show.text}）`, show.soon));
           } else {
             card.append(row("演出", "已結束"));
           }

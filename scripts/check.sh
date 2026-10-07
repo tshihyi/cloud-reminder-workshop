@@ -69,7 +69,9 @@ for file in "${files[@]}"; do
   [[ -z "$venue" ]] && { report_error "$file" "缺少 venue（場地）"; file_ok=false; }
   [[ ${#shows[@]} -eq 0 ]] && { report_error "$file" "shows（演出日期）至少要有一天"; file_ok=false; }
   for show in "${shows[@]}"; do
-    is_valid_date "$show" || { report_error "$file" "演出日期不存在或格式不對：$show"; file_ok=false; }
+    # 演出可以只寫日期，或加上開演時間
+    is_valid_date "$show" || is_valid_datetime "$show" ||
+      { report_error "$file" "演出日期不存在或格式不對：$show（要寫成 YYYY-MM-DD 或 YYYY-MM-DD HH:MM）"; file_ok=false; }
   done
   # 開賣時間還沒公布可以填 null，有填就要是對的
   if [[ -n "$sale_at" ]] && ! is_valid_datetime "$sale_at"; then
@@ -101,7 +103,7 @@ for file in "${files[@]}"; do
   fi
   # 演出前一天早上 9 點那一輪提醒
   for show in "${shows[@]}"; do
-    if [[ "$(date -d "$show -1 day" +%F)" == "$today" && "$hour" == "09" ]]; then
+    if [[ "$(date -d "${show:0:10} -1 day" +%F)" == "$today" && "$hour" == "09" ]]; then
       add_reminder show_1d "$show"
     fi
   done

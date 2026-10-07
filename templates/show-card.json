@@ -7,7 +7,7 @@
     {
       "type": "FactSet",
       "facts": [
-        { "title": "演出日期", "value": "{{show_date}}" },
+        { "title": "演出時間", "value": "{{show_date}}" },
         { "title": "場地", "value": "{{venue}}" }
       ]
     },
