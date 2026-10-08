@@ -1,4 +1,4 @@
-"""演唱會小祕書：抓新聞、算倒數、發 LINE。
+"""雲端小祕書：抓新聞、算倒數、發 LINE。
 
 只用 Python 內建套件，runner 上不用 pip install。
 
@@ -197,7 +197,7 @@ def build_card(line_name, artist, concert, today, reminders, news, run_url, plai
                 "type": "box", "layout": "vertical", "backgroundColor": "#06C755",
                 "contents": [
                     text_block(f"🎤 {artist}", size="xl", weight="bold", color="#FFFFFF"),
-                    text_block(f"✅ 部署成功 · {line_name or '匿名'} 的演唱會小祕書", size="xs", color="#FFFFFF"),
+                    text_block(f"✅ 部署成功 · {line_name or '匿名'} 的雲端小祕書", size="xs", color="#FFFFFF"),
                 ],
             },
             "body": {"type": "box", "layout": "vertical", "spacing": "md", "contents": body},
