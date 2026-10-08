@@ -82,6 +82,33 @@ class ReminderTest(unittest.TestCase):
             monitor.resolve_today("2027/1/8")
 
 
+class CardTest(unittest.TestCase):
+    NEWS = [{"title": "YOASOBI 演唱會開賣", "link": "https://example.com/1"}]
+
+    def build(self, concert):
+        return monitor.build_card("Ella", "YOASOBI", concert, datetime.date(2027, 1, 8), ["x"], self.NEWS, "https://github.com/run/1", "x")
+
+    def footer_labels(self, card):
+        return [block["action"]["label"] for block in card["contents"]["footer"]["contents"] if block["type"] == "button"]
+
+    def test_buy_button_when_url(self):
+        card = self.build({**YOASOBI, "url": "https://ticketplus.com.tw/"})
+        self.assertEqual(self.footer_labels(card), ["🎫 前往購票", "⚙️ 查看這次的 CI/CD 執行"])
+
+    def test_no_buy_button_without_url(self):
+        self.assertEqual(self.footer_labels(self.build(YOASOBI)), ["⚙️ 查看這次的 CI/CD 執行"])
+
+    def test_countdown_and_news_link(self):
+        body = self.build(YOASOBI)["contents"]["body"]["contents"]
+        self.assertEqual(body[0]["contents"][0]["text"], "D-1")
+        self.assertEqual([block.get("action", {}).get("uri") for block in body if "action" in block], ["https://example.com/1"])
+
+    def test_alert_card(self):
+        card, text = monitor.build_alert_card("", "YOASOBI", "https://github.com/run/1")
+        self.assertIn("匿名", text)
+        self.assertEqual(card["contents"]["footer"]["contents"][0]["action"]["uri"], "https://github.com/run/1")
+
+
 class ConcertDataTest(unittest.TestCase):
     """concerts/ 的資料也要過 CI：缺值可以，錯值要擋。"""
 
@@ -95,6 +122,8 @@ class ConcertDataTest(unittest.TestCase):
                 for show in concert["shows"]:
                     self.assertRegex(show, r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$")
                     datetime.datetime.fromisoformat(show)
+                if concert.get("url"):
+                    self.assertTrue(concert["url"].startswith("https://"))
                 if concert.get("sale_at"):
                     datetime.datetime.strptime(concert["sale_at"], "%Y-%m-%d %H:%M")
 

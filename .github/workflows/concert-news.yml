@@ -60,6 +60,7 @@ jobs:
         env:
           TODAY: ${{ inputs.today }}
           SCENARIO: ${{ inputs.scenario }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
   deploy:                         # ③ CD：有勾選才發 LINE
     needs: fetch
