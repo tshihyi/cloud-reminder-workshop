@@ -9,7 +9,7 @@
    - 選「建立新的服務提供者」，名稱 `cloud-reminder-workshop`。
    - 隱私權政策、服務條款都是選填，可以留空。
 4. 到 [LINE Developers Console](https://developers.line.biz/console/) → `cloud-reminder-workshop` → 這個 channel → **Messaging API** 分頁 → 最下方 **Channel access token (long-lived)** 按 **Issue**。
-5. QR code 已放在 [`docs/line/line-qrcode.png`](line/line-qrcode.png)，README 最上方也有。來源是 LINE 官方的 QR 圖片網址 `https://qr-official.line.me/gs/M_977finnl_GW.png`。
+5. 在 Manager 的「增加好友」下載 QR code，放進計畫書和開場簡報，**不要放進這個 public repo**。
 
 再用同樣步驟建一個只有自己加好友的**測試帳號**，彩排用。
 

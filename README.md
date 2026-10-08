@@ -11,15 +11,9 @@ flowchart TD
     fetch -.->|失敗| alert
 ```
 
-## 加入 LINE 官方帳號
-
-<img src="docs/line/line-qrcode.png" alt="雲端小祕書Workshop LINE QR code" width="180">
-
-手機掃描，或點 [加入好友](https://line.me/R/ti/p/@977finnl)（`@977finnl`）。12 人以上時由組長加入。
-
 ## 怎麼玩
 
-1. 加入上面的 LINE 官方帳號，會收到歡迎訊息，聊天室下方有選單。
+1. 用課堂上提供的 QR code 加入 LINE 官方帳號（12 人以上時由組長加入），會收到歡迎訊息，聊天室下方有選單。
 2. 打開 **Actions → concert-news → Run workflow**，填欄位後按 **Run workflow**：
 
 | 欄位 | 說明 |
@@ -85,5 +79,5 @@ flowchart TD
     ├── azure-pipelines.md               # GitHub Actions ↔ Azure Pipelines 對照
     ├── azure/azure-pipelines.yml        # 同一條流水線的 Azure Pipelines 版本
     ├── line-setup.md                    # 主講人：LINE 官方帳號、歡迎訊息、圖文選單、開場示範
-    └── line/                            # QR code 與圖文選單圖片
+    └── line/                            # 圖文選單圖片
 ```
