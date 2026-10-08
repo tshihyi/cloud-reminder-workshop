@@ -84,5 +84,8 @@ jobs:
       - run: python3 monitor_and_notify.py alert
         env:
           NOTIFY: ${{ inputs.notify }}
+          TEST_RESULT: ${{ needs.test.result }}
+          FETCH_RESULT: ${{ needs.fetch.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}

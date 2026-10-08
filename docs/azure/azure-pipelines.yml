@@ -84,6 +84,10 @@ stages:
   - stage: alert                  # ⚠️ 前面任何一步失敗就發警示
     dependsOn: [test, fetch, deploy]
     condition: failed()           # 對應 if: failure()
+    variables:                    # 對應 needs.<job>.result，Azure 的值是 Succeeded／Failed／Skipped
+      testResult: $[ stageDependencies.test.test.result ]
+      fetchResult: $[ stageDependencies.fetch.fetch.result ]
+      deployResult: $[ stageDependencies.deploy.deploy.result ]
     jobs:
       - job: alert
         steps:
@@ -93,5 +97,8 @@ stages:
               ARTIST: ${{ parameters.artist }}
               LINE_NAME: ${{ parameters.lineName }}
               NOTIFY: ${{ parameters.notify }}
+              TEST_RESULT: $(testResult)
+              FETCH_RESULT: $(fetchResult)
+              DEPLOY_RESULT: $(deployResult)
               RUN_URL: $(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)
               LINE_CHANNEL_ACCESS_TOKEN: $(LINE_CHANNEL_ACCESS_TOKEN)

@@ -8,7 +8,8 @@
     python3 monitor_and_notify.py alert    # 前面失敗時發警示
 
 設定都從環境變數讀：ARTIST、LINE_NAME、TODAY、SCENARIO、NOTIFY、MESSAGE、
-LINE_CHANNEL_ACCESS_TOKEN、RUN_URL（這次執行的網址，放在卡片按鈕上）。
+LINE_CHANNEL_ACCESS_TOKEN、RUN_URL（這次執行的網址，放在卡片按鈕上）、
+TEST_RESULT／FETCH_RESULT／DEPLOY_RESULT（alert 用來判斷哪一步失敗）。
 """
 
 import datetime
@@ -165,6 +166,7 @@ def build_card(line_name, artist, concert, today, reminders, news, run_url, plai
             ],
         })
     body.extend(text_block(reminder, size="sm") for reminder in reminders)
+    body.append(text_block(pipeline_status({"test": "success", "fetch": "success", "deploy": "success"}), size="xs", color="#16A34A", margin="md"))
 
     body.append({"type": "separator", "margin": "lg"})
     body.append(text_block("📰 最新消息", size="sm", weight="bold", margin="lg"))
@@ -184,7 +186,7 @@ def build_card(line_name, artist, concert, today, reminders, news, run_url, plai
     run = open_url("⚙️ 查看這次的 CI/CD 執行", run_url)
     if run:
         footer.append({"type": "button", "style": "secondary", "action": run})
-    footer.append(text_block(f"由 {line_name or '匿名'} 觸發 · GitHub Actions", size="xxs", color="#94A3B8", align="center"))
+    footer.append(text_block(f"✅ CI/CD 全部通過 · 由 {line_name or '匿名'} 觸發", size="xxs", color="#94A3B8", align="center"))
 
     return {
         "type": "flex",
@@ -195,7 +197,7 @@ def build_card(line_name, artist, concert, today, reminders, news, run_url, plai
                 "type": "box", "layout": "vertical", "backgroundColor": "#06C755",
                 "contents": [
                     text_block(f"🎤 {artist}", size="xl", weight="bold", color="#FFFFFF"),
-                    text_block(f"{line_name or '匿名'} 的演唱會小祕書", size="xs", color="#FFFFFF"),
+                    text_block(f"✅ 部署成功 · {line_name or '匿名'} 的演唱會小祕書", size="xs", color="#FFFFFF"),
                 ],
             },
             "body": {"type": "box", "layout": "vertical", "spacing": "md", "contents": body},
@@ -204,8 +206,26 @@ def build_card(line_name, artist, concert, today, reminders, news, run_url, plai
     }
 
 
-def build_alert_card(line_name, artist, run_url):
-    text = f"⚠️ {line_name or '匿名'} 訂閱 {artist} 的流程失敗了，這次不發通知。"
+STATUS_ICONS = {"success": "✅", "failure": "❌"}
+# Azure Pipelines 的結果是 Succeeded／Failed，換成 GitHub Actions 的寫法
+AZURE_RESULTS = {"succeeded": "success", "failed": "failure"}
+PIPELINE_STEPS = ("test", "fetch", "deploy")
+FAILURE_EXPLANATIONS = {
+    "test": ("🧪 CI 測試沒過", "程式有問題，CI 先擋下來，後面的 fetch、deploy 都沒有執行。"),
+    "fetch": ("📡 資料來源失敗", "抓不到資料，deploy 沒有執行，所以沒有發演唱會卡片。"),
+    "deploy": ("📱 LINE 發送失敗", "資料都準備好了，但發送到 LINE 時出錯。"),
+}
+
+
+def pipeline_status(results):
+    """例：test ✅ → fetch ❌ → deploy ⏭（沒跑或被略過都算 ⏭）"""
+    return " → ".join(f"{step} {STATUS_ICONS.get(results.get(step, ''), '⏭')}" for step in PIPELINE_STEPS)
+
+
+def build_alert_card(line_name, artist, run_url, results):
+    failed_step = next((step for step in PIPELINE_STEPS if results.get(step) == "failure"), None)
+    title, explanation = FAILURE_EXPLANATIONS.get(failed_step, ("⚠️ 流程失敗", "流程中途出錯，沒有發演唱會卡片。"))
+    text = f"{title}：{line_name or '匿名'} 訂閱的 {artist}，{explanation}"
     card = {
         "type": "flex",
         "altText": text,
@@ -213,10 +233,14 @@ def build_alert_card(line_name, artist, run_url):
             "type": "bubble",
             "header": {
                 "type": "box", "layout": "vertical", "backgroundColor": "#DC2626",
-                "contents": [text_block("⚠️ 流程失敗", size="xl", weight="bold", color="#FFFFFF")],
+                "contents": [
+                    text_block(title, size="xl", weight="bold", color="#FFFFFF"),
+                    text_block(f"⚠️ CI/CD 擋下來了 · {line_name or '匿名'} 訂閱的 {artist}", size="xs", color="#FFFFFF"),
+                ],
             },
             "body": {"type": "box", "layout": "vertical", "spacing": "md", "contents": [
-                text_block(text, size="sm"),
+                text_block(explanation, size="sm"),
+                text_block(pipeline_status(results), size="xs", color="#DC2626"),
                 text_block("寧可不發，也不要發錯。修好後再手動執行。", size="xs", color="#64748B"),
             ]},
         },
@@ -307,7 +331,11 @@ def command_deploy():
 
 
 def command_alert():
-    card, text = build_alert_card(os.environ.get("LINE_NAME", "").strip(), os.environ.get("ARTIST", ""), os.environ.get("RUN_URL", ""))
+    results = {}
+    for step in PIPELINE_STEPS:
+        result = os.environ.get(f"{step.upper()}_RESULT", "").lower()
+        results[step] = AZURE_RESULTS.get(result, result)
+    card, text = build_alert_card(os.environ.get("LINE_NAME", "").strip(), os.environ.get("ARTIST", ""), os.environ.get("RUN_URL", ""), results)
     if os.environ.get("NOTIFY", "").lower() == "true":
         broadcast(os.environ["LINE_CHANNEL_ACCESS_TOKEN"], [card])
         write_summary("## ⚠️ 已發送 LINE 警示")

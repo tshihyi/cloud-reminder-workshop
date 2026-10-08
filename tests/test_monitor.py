@@ -103,10 +103,21 @@ class CardTest(unittest.TestCase):
         self.assertEqual(body[0]["contents"][0]["text"], "D-1")
         self.assertEqual([block.get("action", {}).get("uri") for block in body if "action" in block], ["https://example.com/1"])
 
-    def test_alert_card(self):
-        card, text = monitor.build_alert_card("", "YOASOBI", "https://github.com/run/1")
+    def test_alert_card_ci_failure(self):
+        card, text = monitor.build_alert_card("", "YOASOBI", "https://github.com/run/1", {"test": "failure", "fetch": "skipped"})
         self.assertIn("匿名", text)
+        self.assertEqual(card["contents"]["header"]["contents"][0]["text"], "🧪 CI 測試沒過")
+        self.assertEqual(card["contents"]["body"]["contents"][1]["text"], "test ❌ → fetch ⏭ → deploy ⏭")
         self.assertEqual(card["contents"]["footer"]["contents"][0]["action"]["uri"], "https://github.com/run/1")
+
+    def test_alert_card_source_failure(self):
+        card, _ = monitor.build_alert_card("Ella", "YOASOBI", "", {"test": "success", "fetch": "failure", "deploy": "skipped"})
+        self.assertEqual(card["contents"]["header"]["contents"][0]["text"], "📡 資料來源失敗")
+        self.assertNotIn("footer", card["contents"])
+
+    def test_success_card_says_passed(self):
+        card = self.build(YOASOBI)
+        self.assertIn("部署成功", card["contents"]["header"]["contents"][1]["text"])
 
 
 class ConcertDataTest(unittest.TestCase):
