@@ -1,84 +1,73 @@
-# 打造你的雲端小祕書：演唱會提醒小幫手
+# 打造你的雲端小祕書：CI/CD 一鍵體驗
 
-工作坊練習用 repo。登記想看的演唱會，GitHub Actions 每小時檢查一次，時間到了就發 Teams 提醒；資料有錯就停下來，改發警示。
+在 GitHub 網頁上輸入想追的演唱者，按一下 Run，看 CI/CD 流水線一格一格亮燈，手機收到 LINE 通知。全程不用改程式、不用裝任何東西。
 
+```mermaid
+flowchart TD
+    panel["控制面板<br/>workflow_dispatch"] --> test["① test<br/>CI：跑單元測試"]
+    test -->|needs| fetch["② fetch<br/>抓新聞、算倒數"]
+    fetch -->|"needs ＋ 勾選收通知"| deploy["③ deploy<br/>CD：發 LINE"]
+    test -.->|失敗| alert["⚠️ alert<br/>if: failure()"]
+    fetch -.->|失敗| alert
 ```
-⏰ 每小時／手動執行
-  → ① check：檢查資料、挑出該提醒的場次
-  → ② publish：發 🎫 開賣／🎤 演出提醒到 Teams
-  → ⚠️ alert：資料有錯時發警示（看板和提醒都不發）
-```
 
-這是 MDP 每日排程鏈（ETL → dbt → 下游）的縮小版。
+## 怎麼玩
+
+1. 用課堂上提供的 QR code 加入 LINE 官方帳號（12 人以上時由組長加入）。
+2. 打開 **Actions → concert-news → Run workflow**，填欄位後按 **Run workflow**：
+
+| 欄位 | 說明 |
+|---|---|
+| 想追的演唱者 | 必填，例如 `YOASOBI`、`Maroon 5` |
+| 自己的 LINE 暱稱 | 會寫在通知裡，留空就顯示「匿名」 |
+| 收 LINE 通知 | 勾選才發 LINE，沒勾只寫 Actions 摘要 |
+| 假設今天是 | `YYYY-MM-DD`，留空就是今天 |
+| 情境 | `正常`／`CI 測試失敗`／`資料來源失敗` |
+
+3. 點進剛跑的那一筆，看流程圖和最下方的摘要。
+
+## 一鍵體驗：同一條流水線跑兩次
+
+| | 第 1 次：不勾通知 | 第 2 次：勾通知＋假設今天是 `2027-01-08` |
+|---|---|---|
+| ① test | ✅ | ✅ |
+| ② fetch | ✅ 最新新聞＋演出倒數 | ✅ 最新新聞＋「明天演出」 |
+| ③ deploy | ⏭ 灰色「已略過」 | ✅ 手機叮咚 |
+
+## 三關：切換「情境」
+
+| 關卡 | 情境 | 會看到 |
+|---|---|---|
+| 第 1 關・CI | `CI 測試失敗` | test 紅燈，後面全部略過：程式有問題，就不會部署出去 |
+| 第 2 關・CD | `正常` | 一路綠燈；流程圖上的連線就是 `needs`，上一步做完才輪到下一步 |
+| 第 3 關・防護 | `資料來源失敗` | fetch 紅燈、deploy 略過，alert 發 ⚠️ 警示 |
+
+**寧可不發，也不要發錯；失敗不自動重跑。** 上游壞了，下游就停下來改發警示，由人看完、修好再手動執行。
+
+## 示範資料
+
+`concerts/` 放台灣場次的演出和開賣時間，用來算倒數：
+
+| 演唱者 | 演出 | 場地 |
+|---|---|---|
+| Stray Kids | 2026-12-12 | 臺北大巨蛋 |
+| YOASOBI | 2027-01-09、01-10 | 臺北大巨蛋 |
+| Maroon 5 | 2027-01-24 | 高雄世運主場館 |
+| BIGBANG | 2027-02-27、02-28 | 高雄世運主場館 |
+| TXT | 2027-03-06、03-07 | 高雄（場館未公布） |
+| Bruno Mars | 2027-05-01、05-02 | 高雄世運主場館 |
+
+演出日期與場地以主辦單位公告為準。新聞來自 Google 新聞 RSS，連結給人自己點。
 
 ## 目錄
 
 ```
-├── .github/workflows/concert-reminder.yml   # 主戰場：第 2、3 關的 TODO 在這裡
-├── concerts/                                # 登記的演唱會，一場一個 json
-├── scripts/
-│   ├── check.sh                             # 驗證資料、挑出該提醒的場次
-│   ├── publish.sh                           # 發提醒
-│   └── teams.sh                             # 填卡片樣板、發到 Teams
-├── templates/                               # Teams 卡片樣板（開賣／演出／警示）
-└── site/index.html                          # 演唱會看板（GitHub Pages）
+├── .github/workflows/concert-news.yml   # 流水線：test → fetch → deploy → alert
+├── monitor_and_notify.py                # 抓新聞、算倒數、發 LINE（只用 Python 內建套件）
+├── tests/test_monitor.py                # CI 用的單元測試，也檢查 concerts/ 的資料
+├── concerts/                            # 演唱會資料
+└── docs/
+    ├── azure-pipelines.md               # GitHub Actions ↔ Azure Pipelines 對照
+    ├── azure/azure-pipelines.yml        # 同一條流水線的 Azure Pipelines 版本
+    └── line-setup.md                    # 主講人：LINE 官方帳號與 GitHub 設定
 ```
-
-## 演唱會 json 格式
-
-```json
-{
-  "artist": "Maroon 5",
-  "venue": "高雄世運主場館",
-  "shows": ["2027-01-24"],
-  "platform": "拓元售票",
-  "sale_at": "2026-08-14 12:00",
-  "url": "https://tixcraft.com/..."
-}
-```
-
-- `shows`：演出日期，可以有好幾天。知道開演時間就寫成 `"2027-01-09 18:00"`，卡片會一起顯示。
-- `sale_at`：開賣時間（台北時間）。還沒公布就填 `null`，只會發演出提醒。
-- `platform`、`url`：可以填 `null`。有 `url` 時，卡片會多一顆「前往購票」按鈕。
-
-**缺值可以，錯值要擋。** 開賣時間填 `null` 是合法的；日期寫成 `2026-11-31` 就會被擋下來。
-
-## 三個提醒時點
-
-| 提醒 | 什麼時候 |
-|---|---|
-| 🎫 開賣前一天 | 開賣前 23～24 小時那一輪 |
-| 🎫 開賣前 1 小時 | 開賣前 0～1 小時那一輪 |
-| 🎤 演出前一天 | 演出前一天 09:00 那一輪 |
-
-GitHub 排程可能延遲幾十分鐘，所以課堂上一律手動執行。
-
-## 手動執行
-
-Actions → concert-reminder → Run workflow：
-
-- **假裝現在是**：填 `2026-09-16 12:00` 之類的時間，就能當場觸發提醒。
-- **順便更新演唱會看板**：預設不勾，課堂上省下部署時間。
-
-示範用的時間：
-
-| 填這個時間 | 會收到 |
-|---|---|
-| `2026-08-13 12:00` | 🎫 明天 12:00 Maroon 5 開賣 |
-| `2026-09-14 09:30` | 🎫 還有 1 小時，Bruno Mars 開賣 |
-| `2026-12-11 09:00` | 🎤 明天 Stray Kids 演出 |
-
-## 三關
-
-1. **登記演唱會**：在 `concerts/` 新增一個 json，執行一次，看 check 變綠燈。
-2. **時間到了，提醒我**：在 `publish` 加上 `needs: check`，用「假裝現在是」執行，Teams 跳出提醒。
-3. **日期填錯了**：把某場的演出日改成 `2026-11-31`，check 失敗；把 `alert` 的 `if: false` 改成 `if: failure()`，Teams 跳出警示。修好資料後手動重跑。
-
-解答分支：`solution-2`、`solution-3`。現場來不及就直接切過去。
-
-## 設定
-
-- **Environment `lab-env`**：secret `TEAMS_WEBHOOK_URL`（Teams Workflows 建立的 webhook 網址）。
-- **Pages**：Settings → Pages → Source 選 **GitHub Actions**。
-
-演出日期與場地以主辦單位公告為準。

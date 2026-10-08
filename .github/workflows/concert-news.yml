@@ -1,0 +1,87 @@
+name: concert-news
+run-name: ${{ inputs.line_name || '匿名' }} 訂閱 ${{ inputs.artist }}（${{ inputs.scenario }}）
+
+on:
+  workflow_dispatch:
+    inputs:
+      artist:
+        description: "想追的演唱者"
+        required: true
+        type: string
+      line_name:
+        description: "自己的 LINE 暱稱（留空＝匿名）"
+        required: false
+        type: string
+        default: ""
+      notify:
+        description: "收 LINE 通知"
+        type: boolean
+        default: false
+      today:
+        description: "假設今天是（YYYY-MM-DD，留空＝今天）"
+        required: false
+        type: string
+        default: ""
+      scenario:
+        description: "情境"
+        type: choice
+        options:
+          - 正常
+          - CI 測試失敗
+          - 資料來源失敗
+        default: 正常
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Taipei
+  ARTIST: ${{ inputs.artist }}
+  LINE_NAME: ${{ inputs.line_name }}
+
+jobs:
+  test:                           # ① CI：先確認程式沒壞
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 -m unittest discover -s tests -v
+        env:
+          SIMULATE_CI_FAILURE: ${{ inputs.scenario == 'CI 測試失敗' }}
+
+  fetch:                          # ② 資料管線：抓新聞、算倒數
+    needs: test                   # 上一步做完，才輪到我
+    runs-on: ubuntu-24.04
+    outputs:
+      message: ${{ steps.fetch.outputs.message }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: fetch
+        run: python3 monitor_and_notify.py fetch
+        env:
+          TODAY: ${{ inputs.today }}
+          SCENARIO: ${{ inputs.scenario }}
+
+  deploy:                         # ③ CD：有勾選才發 LINE
+    needs: fetch
+    if: inputs.notify
+    runs-on: ubuntu-24.04
+    environment: lab-env
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 monitor_and_notify.py deploy
+        env:
+          MESSAGE: ${{ needs.fetch.outputs.message }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+
+  alert:                          # ⚠️ 前面任何一步失敗就發警示
+    needs: [test, fetch, deploy]
+    if: failure()
+    runs-on: ubuntu-24.04
+    environment: lab-env
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 monitor_and_notify.py alert
+        env:
+          NOTIFY: ${{ inputs.notify }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}

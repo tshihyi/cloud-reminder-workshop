@@ -1,0 +1,96 @@
+# 同一條流水線的 Azure Pipelines 版本，對照 .github/workflows/concert-news.yml。
+# 匯入方式：Azure DevOps → Pipelines → New pipeline → 選這個 repo → Existing Azure Pipelines YAML file。
+# 需要先在 Library 建 variable group「lab-env」，放 secret 變數 LINE_CHANNEL_ACCESS_TOKEN。
+
+trigger: none                     # 不自動觸發，對應 workflow_dispatch
+pr: none
+
+parameters:                       # 對應 workflow_dispatch.inputs，執行時會出現輸入欄位
+  - name: artist
+    displayName: 想追的演唱者
+    type: string
+  - name: lineName
+    displayName: 自己的 LINE 暱稱（留空＝匿名）
+    type: string
+    default: " "
+  - name: notify
+    displayName: 收 LINE 通知
+    type: boolean
+    default: false
+  - name: today
+    displayName: 假設今天是（YYYY-MM-DD，留空＝今天）
+    type: string
+    default: " "
+  - name: scenario
+    displayName: 情境
+    type: string
+    default: 正常
+    values:
+      - 正常
+      - CI 測試失敗
+      - 資料來源失敗
+
+variables:
+  - group: lab-env                # 對應 GitHub 的 environment secret
+  - name: TZ
+    value: Asia/Taipei
+
+pool:
+  vmImage: ubuntu-24.04
+
+stages:
+  - stage: test                   # ① CI：先確認程式沒壞
+    jobs:
+      - job: test
+        steps:
+          - checkout: self
+          - script: python3 -m unittest discover -s tests -v
+            env:
+              SIMULATE_CI_FAILURE: ${{ eq(parameters.scenario, 'CI 測試失敗') }}
+
+  - stage: fetch                  # ② 資料管線：抓新聞、算倒數
+    dependsOn: test               # 對應 needs: test
+    jobs:
+      - job: fetch
+        steps:
+          - checkout: self
+          - script: python3 monitor_and_notify.py fetch
+            name: fetchStep       # 程式偵測到 TF_BUILD 會用 ##vso 輸出 message
+            env:
+              ARTIST: ${{ parameters.artist }}
+              LINE_NAME: ${{ parameters.lineName }}
+              TODAY: ${{ parameters.today }}
+              SCENARIO: ${{ parameters.scenario }}
+
+  - stage: deploy                 # ③ CD：有勾選才發 LINE
+    dependsOn: fetch
+    condition: and(succeeded(), eq('${{ parameters.notify }}', 'true'))   # 對應 if: inputs.notify
+    variables:
+      message: $[ stageDependencies.fetch.fetch.outputs['fetchStep.message'] ]
+    jobs:
+      - deployment: deploy        # 對應 environment: lab-env
+        environment: lab-env
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - script: python3 monitor_and_notify.py deploy
+                  env:
+                    MESSAGE: $(message)
+                    LINE_CHANNEL_ACCESS_TOKEN: $(LINE_CHANNEL_ACCESS_TOKEN)
+
+  - stage: alert                  # ⚠️ 前面任何一步失敗就發警示
+    dependsOn: [test, fetch, deploy]
+    condition: failed()           # 對應 if: failure()
+    jobs:
+      - job: alert
+        steps:
+          - checkout: self
+          - script: python3 monitor_and_notify.py alert
+            env:
+              ARTIST: ${{ parameters.artist }}
+              LINE_NAME: ${{ parameters.lineName }}
+              NOTIFY: ${{ parameters.notify }}
+              RUN_URL: $(System.CollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)
+              LINE_CHANNEL_ACCESS_TOKEN: $(LINE_CHANNEL_ACCESS_TOKEN)
