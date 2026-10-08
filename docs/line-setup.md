@@ -9,11 +9,62 @@
    - 選「建立新的服務提供者」，名稱 `cloud-reminder-workshop`。
    - 隱私權政策、服務條款都是選填，可以留空。
 4. 到 [LINE Developers Console](https://developers.line.biz/console/) → `cloud-reminder-workshop` → 這個 channel → **Messaging API** 分頁 → 最下方 **Channel access token (long-lived)** 按 **Issue**。
-5. 在 Manager 的「增加好友」下載 QR code，**課堂上私下提供，不要放進這個 public repo**。
+5. QR code 已放在 [`docs/line/line-qrcode.png`](line/line-qrcode.png)，README 最上方也有。來源是 LINE 官方的 QR 圖片網址 `https://qr-official.line.me/gs/M_977finnl_GW.png`。
 
 再用同樣步驟建一個只有自己加好友的**測試帳號**，彩排用。
 
-## 二、免費額度
+### 加好友歡迎訊息
+
+Manager → **聊天室相關 → 加入好友的歡迎訊息**，換成下面這段。歡迎訊息不算在每月額度裡。
+
+```
+歡迎加入雲端小祕書 Workshop 🎤
+
+三步驟開始體驗：
+1️⃣ 點下方選單「開始體驗」
+2️⃣ 填想追的演唱者、自己的 LINE 暱稱，勾選「收 LINE 通知」
+3️⃣ 按 Run workflow，約 1 分鐘後這裡會收到你的演唱會卡片
+
+想知道背後怎麼運作？點「看說明」；平常用 Azure 的同事點「Azure 對照」。
+```
+
+同時到 **回應設定**，把「自動回應訊息」關掉，避免同事在聊天室打字時跳出制式回覆。
+
+### 圖文選單
+
+Manager → **圖文選單 → 建立**：
+
+1. 版型選「大型」的**三格**（2500 × 843）。
+2. 背景圖片上傳 [`docs/line/rich-menu.png`](line/rich-menu.png)。
+3. 三個區塊的動作都選「連結」：
+
+| 區塊 | 連結 |
+|---|---|
+| 開始體驗 | `https://github.com/tshihyi/cloud-reminder-workshop/actions/workflows/concert-news.yml` |
+| 看說明 | `https://github.com/tshihyi/cloud-reminder-workshop#readme` |
+| Azure 對照 | `https://github.com/tshihyi/cloud-reminder-workshop/blob/main/docs/azure-pipelines.md` |
+
+4. 選單列顯示文字填「雲端小祕書」，預設**展開**。
+
+點選單只是開網頁，不算訊息則數。
+
+![圖文選單](line/rich-menu.png)
+
+## 二、開場示範：全場一起倒數
+
+開場加好友之後，主講人投影 Actions 頁面，用這組欄位執行一次：
+
+| 欄位 | 填什麼 |
+|---|---|
+| 想追的演唱者 | `YOASOBI` |
+| 自己的 LINE 暱稱 | `Ryan` |
+| 收 LINE 通知 | ☑ |
+| 假設今天是 | `2027-01-08`（演出前一天） |
+| 情境 | `正常` |
+
+邊跑邊講流程圖上每一格在做什麼，大約 1 分鐘後全場手機同時跳出 `D-1` 卡片。接著請大家點卡片上的「⚙️ 查看這次的 CI/CD 執行」，回到剛才那張流程圖，自然帶進第一次親手執行。
+
+## 三、免費額度
 
 免費方案每月 200 則，**按收件人數計算**：廣播一次給 12 人＝12 則。
 
@@ -25,7 +76,7 @@
 - 彩排一律用測試帳號的 token，每次只用 1 則。
 - alert 也看「收通知」勾選，沒勾就不發 LINE；第 3 關由主講人勾選示範一次就好。
 
-## 三、GitHub 設定
+## 四、GitHub 設定
 
 | 位置 | 設定 | 目的 |
 |---|---|---|
@@ -36,13 +87,13 @@
 
 彩排時把 `lab-env` 的 token 換成測試帳號的，上課前一天換回正式帳號。
 
-## 四、課後
+## 五、課後
 
 1. 移除所有 collaborator。
 2. LINE Developers Console 重新 Issue token（舊的就失效），或直接刪掉 `lab-env` 的 secret。
-3. 換一個新的 QR code，或停用官方帳號。
+3. 在 Manager 重新產生 QR code（舊的失效），或停用官方帳號。
 
-## 五、更新演唱會資料
+## 六、更新演唱會資料
 
 上課前更新 `concerts/`，一場一個 json：
 
